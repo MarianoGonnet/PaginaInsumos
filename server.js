@@ -9,6 +9,7 @@ for (const key of REQUIRED_ENV) {
     }
 }
 
+const path       = require('path');
 const express    = require('express');
 const session    = require('express-session');
 const pgSession  = require('connect-pg-simple')(session);
@@ -74,7 +75,7 @@ const loginLimiter = rateLimit({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Sesiones persistentes en Supabase (PostgreSQL) ───────────────────────────
 const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE_MS) || 8 * 60 * 60 * 1000;
