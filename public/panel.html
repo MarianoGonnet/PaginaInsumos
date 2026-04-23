@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Usuario – Sistema de Insumos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <h1 id="titulo-panel" style="margin: 0;">Panel de Control</h1>
+</header>
+
+<main>
+  <div class="panel-usuario">
+    <div class="info-box">
+      <p><strong>Fecha:</strong> <span id="fecha-actual"></span></p>
+      <p><strong>Insumos Disponibles:</strong> <span id="insumos-disponibles" class="cantidad"></span></p>
+    </div>
+
+    <div class="form-consumo">
+      <label for="cantidad-cajas"><strong>Cajas recibidas:</strong></label>
+      <select id="cantidad-cajas" style="padding: 5px;" onchange="actualizarCalculo()">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+      </select>
+      <span id="calculo-visual" style="font-weight: bold;">= 750 insumos</span>
+      <button id="btn-recibir" onclick="recibirInsumos()">Confirmar Recepción</button>
+      <p id="mensaje-recibir-error"></p>
+    </div>
+
+    <hr class="separador-seccion">
+
+    <!-- SECCIÓN DE MENSAJERÍA -->
+    <fieldset class="seccion-mensajeria">
+      <legend>Mensajería Inter-Municipal</legend>
+      
+      <div class="mensajes-grid">
+        <!-- Columna 1: Enviar -->
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
+          <h3>Redactar Mensaje</h3>
+          <select id="destinatario-msg" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">Seleccionar Municipio...</option>
+          </select>
+          <textarea id="contenido-msg" rows="4" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Escribí tu mensaje acá..."></textarea>
+          <button onclick="enviarMensaje()">Enviar Mensaje</button>
+        </div>
+
+        <!-- Columna 2: Bandeja de Entrada -->
+        <div>
+          <div class="tabs-mensajeria">
+            <button id="tab-recibidos" class="tab-link active" onclick="cambiarTab('recibidos', this)">
+              Bandeja de Entrada
+              <span id="contador-no-leidos" class="notificacion-badge" style="display: none;"></span>
+            </button>
+            <button id="tab-historial" class="tab-link" onclick="cambiarTab('historial', this)">
+              Historial Completo
+            </button>
+          </div>
+          <div id="lista-mensajes" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background: #fafafa; border-radius: 4px;">
+            <p style="color: #666; text-align: center;">Cargando mensajes...</p>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- BOTÓN CERRAR SESIÓN (ABAJO) -->
+    <div style="margin-top: 30px; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
+      <button onclick="window.location.href='/logout'" style="background-color: #d9534f; width: auto; padding: 10px 30px;">Cerrar Sesión</button>
+    </div>
+  </div>
+  
+</main>
+
+<script>
+let usuarioActual = {}; // Guardará los datos del usuario logueado (incluido el ID)
+let estadoVista = {
+  vistaActual: 'recibidos' // 'recibidos' o 'historial'
+};
+
+// Función para obtener la fecha en formato DD/MM/YYYY
+function obtenerFechaActual() {
+  const hoy = new Date();
+  const dia = String(hoy.getDate()).padStart(2, '0');
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0'); // Enero es 0
+  const anio = hoy.getFullYear();
+  return `${dia}/${mes}/${anio}`;
+}
+
+async function cargarDatosUsuario() {
+  // Este endpoint es un ejemplo. Debería devolver los datos del usuario logueado.
+  // Por ejemplo: { nombre: 'Laprida', insumos_blancos: 200 }
+  const res = await fetch(`/api/datos-usuario?t=${Date.now()}`);
+  
+  if (!res.ok) {
+    // Si falla (ej: sesión expirada), redirigir al login
+    window.location.href = '/login.html';
+    return;
+  }
+
+  const data = await res.json();
+
+  // Actualizar la UI con los datos recibidos
+  usuarioActual = data; // Guardamos los datos del usuario globalmente
+  document.getElementById('titulo-panel').textContent = `Panel de ${data.nombre}`;
+  document.getElementById('fecha-actual').textContent = obtenerFechaActual();
+  document.getElementById('insumos-disponibles').textContent = data.insumos_blancos;
+}
+
+async function recibirInsumos() {
+  const btn = document.getElementById('btn-recibir');
+  const selectCajas = document.getElementById('cantidad-cajas');
+  const cajas = parseInt(selectCajas.value);
+  const totalUnidades = cajas * 750;
+  const mensajeError = document.getElementById('mensaje-recibir-error');
+  mensajeError.textContent = ''; // Limpiar errores previos
+
+  if (!confirm(`¿Confirmás la recepción de ${cajas} caja(s)?\nEsto sumará ${totalUnidades} insumos al total.`)) {
+    return;
+  }
+
+  // Deshabilitar botón para evitar doble click accidental
+  btn.disabled = true;
+  btn.textContent = 'Procesando...';
+
+  try {
+  // Nuevo endpoint para recibir insumos
+  const res = await fetch('/api/recibir-insumos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cajas: cajas })
+  });
+
+  if (res.ok) {
+    await cargarDatosUsuario();
+    alert('Recepción de insumos registrada exitosamente.');
+  } else {
+    const error = await res.json();
+    mensajeError.textContent = error.message || 'Ocurrió un error al registrar la recepción.';
+  }
+  } finally {
+    // Rehabilitar botón pase lo que pase
+    btn.disabled = false;
+    btn.textContent = 'Confirmar Recepción';
+  }
+}
+
+function actualizarCalculo() {
+  const cajas = document.getElementById('cantidad-cajas').value;
+  const total = cajas * 750;
+  document.getElementById('calculo-visual').textContent = `= ${total} insumos`;
+}
+
+// --- FUNCIONES DE MENSAJERÍA ---
+
+async function cargarDestinatarios() {
+  try {
+    const res = await fetch('/api/usuarios/lista');
+    if (res.ok) {
+      const usuarios = await res.json();
+      const select = document.getElementById('destinatario-msg');
+      usuarios.forEach(u => {
+        const option = document.createElement('option');
+        option.value = u.id;
+        option.textContent = u.nombre;
+        select.appendChild(option);
+      });
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function cargarContadorNoLeidos() {
+  try {
+    const res = await fetch('/api/mensajes/no-leidos/contador');
+    if (res.ok) {
+      const { contador } = await res.json();
+      const badge = document.getElementById('contador-no-leidos');
+      if (contador > 0) {
+        badge.textContent = contador;
+        badge.style.display = 'inline';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    console.error('Error cargando contador', e);
+    // Ocultar el badge si hay un error para no mostrar info incorrecta
+    document.getElementById('contador-no-leidos').style.display = 'none';
+  }
+}
+
+async function cargarMensajes() {
+  try {
+    const res = await fetch('/api/mensajes/recibidos');
+    const divLista = document.getElementById('lista-mensajes');
+    
+    if (res.ok) {
+      const mensajes = await res.json();
+      divLista.innerHTML = '';
+
+      if (mensajes.length === 0) {
+        divLista.innerHTML = '<p style="color: #666; text-align: center;">No tenés mensajes nuevos.</p>';
+        return;
+      }
+
+      mensajes.forEach(m => {
+        const item = document.createElement('div');
+        // Aplicar clase si no está leído
+        if (!m.leido) {
+          item.classList.add('mensaje-no-leido');
+        }
+        item.style.borderBottom = '1px solid #ddd';
+        item.style.padding = '10px';
+        item.style.marginBottom = '5px';
+        item.style.background = 'white';
+        item.style.borderRadius = '4px';
+        
+        const textoBoton = m.leido ? 'Marcar como no leído' : 'Marcar como leído';
+
+        // Aplicamos la clase 'truncado' por defecto a todos. Si es corto, no afecta visualmente. Si es largo, pone '...'.
+        const contenidoHTML = `
+          <div class="mensaje-contenido truncado" onclick="this.classList.toggle('truncado')" title="Click para expandir/contraer">
+            ${m.contenido}
+          </div>`;
+
+        item.innerHTML = `
+          <div style="font-weight: bold; color: #005EB8; display: flex; justify-content: space-between;">
+            <span>De: ${m.remitenteNombre}</span>
+            <span style="font-weight: normal; color: #999; font-size: 0.8em;">${m.fecha}</span>
+          </div>
+          ${contenidoHTML}
+          <div class="mensaje-acciones">
+            <button class="btn-leido" onclick="toggleLeido(${m.id})">${textoBoton}</button>
+            <button class="btn-responder" onclick="responderMensaje(${m.remitenteId}, ${m.id}, ${m.leido})">Responder</button>
+          </div>
+        `;
+        divLista.appendChild(item);
+      });
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function enviarMensaje() {
+  const destId = document.getElementById('destinatario-msg').value;
+  const contenido = document.getElementById('contenido-msg').value;
+
+  if (!destId || !contenido.trim()) {
+    alert('Por favor seleccioná un municipio y escribí un mensaje.');
+    return;
+  }
+
+  const btn = document.querySelector('button[onclick="enviarMensaje()"]');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    const res = await fetch('/api/mensajes/enviar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destinatarioId: destId, contenido: contenido })
+    });
+
+    if (res.ok) {
+      alert('Mensaje enviado exitosamente.');
+      document.getElementById('contenido-msg').value = ''; // Limpiar
+    } else {
+      alert('Error al enviar el mensaje.');
+    }
+  } catch (e) {
+    alert('Error de conexión.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Mensaje';
+  }
+}
+
+async function toggleLeido(mensajeId) {
+  try {
+    const res = await fetch(`/api/mensajes/${mensajeId}/toggle-leido`, {
+      method: 'POST'
+    });
+
+    if (res.ok) {
+      // Recargar la vista actual (bandeja de entrada o historial)
+      if (estadoVista.vistaActual === 'recibidos') {
+        await cargarMensajes();
+      } else {
+        await cargarHistorial();
+      }
+      await cargarContadorNoLeidos();
+    } else {
+      alert('No se pudo actualizar el estado del mensaje.');
+    }
+  } catch (e) {
+    console.error('Error al cambiar estado de leído', e);
+    alert('Error de conexión.');
+  }
+}
+
+function responderMensaje(remitenteId, mensajeId, esLeido) {
+  // 1. Seleccionar el municipio en el dropdown
+  const select = document.getElementById('destinatario-msg');
+  select.value = remitenteId;
+
+  // 2. Poner el foco en el campo de texto
+  const textarea = document.getElementById('contenido-msg');
+  textarea.focus();
+
+  // 3. Opcional: Hacer scroll hasta el formulario de envío para que sea visible
+  const formRedactar = document.querySelector('.mensajes-grid > div');
+  formRedactar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // 4. Marcar como leído automáticamente si no lo está
+  if (!esLeido && mensajeId) {
+    toggleLeido(mensajeId);
+  }
+}
+
+function cambiarTab(nuevaVista, elementoBoton) {
+  if (estadoVista.vistaActual === nuevaVista) return; // No hacer nada si ya está activa
+
+  estadoVista.vistaActual = nuevaVista;
+
+  // Actualizar clases de los botones
+  document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
+  elementoBoton.classList.add('active');
+
+  // Cargar el contenido correspondiente
+  if (nuevaVista === 'recibidos') {
+    cargarMensajes();
+  } else {
+    cargarHistorial();
+  }
+}
+
+async function cargarHistorial() {
+  const divLista = document.getElementById('lista-mensajes');
+  divLista.innerHTML = '<p style="color: #666; text-align: center;">Cargando historial completo...</p>';
+  
+  try {
+    const res = await fetch('/api/mensajes/historial');
+    if (!res.ok) {
+      divLista.innerHTML = '<p style="color: red; text-align: center;">Error al cargar el historial.</p>';
+      return;
+    }
+
+    const mensajes = await res.json();
+    divLista.innerHTML = '';
+
+    if (mensajes.length === 0) {
+      divLista.innerHTML = '<p style="color: #666; text-align: center;">No hay mensajes en tu historial.</p>';
+      return;
+    }
+
+    mensajes.forEach(m => {
+      const item = document.createElement('div');
+      const esRecibido = m.destinatarioId === usuarioActual.id;
+
+      if (esRecibido && !m.leido) {
+        item.classList.add('mensaje-no-leido');
+      }
+      item.style.borderBottom = '1px solid #ddd';
+      item.style.padding = '10px';
+      item.style.marginBottom = '5px';
+      item.style.background = 'white';
+      item.style.borderRadius = '4px';
+
+      const cabecera = esRecibido 
+        ? `De: ${m.remitenteNombre}` 
+        : `<span style="color: #555;">Para: ${m.destinatarioNombre}</span>`;
+
+      const textoBotonLeido = m.leido ? 'Marcar como no leído' : 'Marcar como leído';
+      
+      // Los botones de acción solo aplican a mensajes recibidos
+      const accionesHTML = esRecibido 
+        ? `<div class="mensaje-acciones">
+             <button class="btn-leido" onclick="toggleLeido(${m.id})">${textoBotonLeido}</button>
+             <button class="btn-responder" onclick="responderMensaje(${m.remitenteId}, ${m.id}, ${m.leido})">Responder</button>
+           </div>`
+        : '';
+
+      const contenidoHTML = `
+        <div class="mensaje-contenido truncado" onclick="this.classList.toggle('truncado')" title="Click para expandir/contraer">
+          ${m.contenido}
+        </div>`;
+
+      item.innerHTML = `
+        <div style="font-weight: bold; color: #005EB8; display: flex; justify-content: space-between;">
+          <span>${cabecera}</span>
+          <span style="font-weight: normal; color: #999; font-size: 0.8em;">${m.fecha}</span>
+        </div>
+        ${contenidoHTML}
+        ${accionesHTML}
+      `;
+      divLista.appendChild(item);
+    });
+  } catch (e) {
+    console.error('Error cargando historial:', e);
+    divLista.innerHTML = '<p style="color: red; text-align: center;">Error de conexión al cargar el historial.</p>';
+  }
+}
+
+// Cargar los datos del usuario cuando la página se carga
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosUsuario();
+  cargarDestinatarios();
+  cargarMensajes(); // Por defecto, cargamos la bandeja de entrada
+  cargarContadorNoLeidos();
+  
+  // Actualizar bandeja de entrada y contador cada 15 segundos
+  setInterval(() => {
+    if (estadoVista.vistaActual === 'recibidos') {
+      cargarMensajes();
+    } else {
+      cargarHistorial();
+    }
+    cargarContadorNoLeidos();
+  }, 15000);
+});
+</script>
+
+</body>
+</html>

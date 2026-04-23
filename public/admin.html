@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración – Stock Global</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Librería para gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>Panel de Administración</h1>
+</header>
+
+<main>
+  <div class="panel-usuario" style="max-width: 800px;">
+    <!-- Sección para crear usuarios -->
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #ddd;">
+      <h3 style="margin-top: 0;">Dar de alta nuevo Municipio</h3>
+      <div class="admin-grid">
+        <input id="nuevo-nombre" type="text" placeholder="Nombre Municipio (Ej: Tandil)">
+        <input id="nuevo-usuario" type="text" placeholder="Usuario (Ej: juan)">
+        <input id="nuevo-stock" type="number" placeholder="Stock Inicial (Ej: 500)">
+        <input id="nuevo-consumo" type="number" placeholder="Consumo Diario (Ej: 75)">
+        <button onclick="crearUsuario()">Crear Usuario</button>
+      </div>
+      <p id="mensaje-creacion" style="margin-top: 10px; font-weight: bold;"></p>
+    </div>
+
+    <h2>Estado de Stock por Municipio</h2>
+    
+    <!-- Aquí se dibujará el gráfico -->
+    <!-- Controles del gráfico -->
+    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+      <input id="filtro-grafico" type="text" placeholder="Filtrar gráfico por nombre..." onkeyup="actualizarGrafico()" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 200px;">
+      <select id="orden-grafico" onchange="actualizarGrafico()" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 200px;">
+        <option value="nombre">Orden Alfabético (A-Z)</option>
+        <option value="stockAsc">Stock (Menor a Mayor)</option>
+        <option value="stockDesc">Stock (Mayor a Menor)</option>
+      </select>
+    </div>
+    <div class="table-responsive">
+      <div style="position: relative; height: 400px;">
+        <canvas id="graficoStock"></canvas>
+      </div>
+    </div>
+
+    <hr class="separador-seccion">
+
+    <!-- MONITOR DE MENSAJES -->
+    <h3>Monitor de Mensajes Inter-Municipales</h3>
+    <div style="margin-bottom: 10px;">
+      <button onclick="cargarMensajesAdmin()" style="width: auto; padding: 5px 15px; font-size: 0.9em; background-color: #17a2b8;">Actualizar Mensajes</button>
+    </div>
+    <div class="table-responsive" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; background: #fff;">
+      <table class="tabla-mensajes-admin" style="width: 100%; border-collapse: collapse;">
+        <thead style="position: sticky; top: 0; background: #e9eef3; z-index: 1;">
+          <tr>
+            <th style="width: 15%;">Fecha</th>
+            <th style="width: 15%;">De</th>
+            <th style="width: 15%;">Para</th>
+            <th style="width: 55%;">Mensaje</th>
+          </tr>
+        </thead>
+        <tbody id="lista-mensajes-admin"></tbody>
+      </table>
+    </div>
+
+    <!-- Tabla de Gestión de Usuarios -->
+    <div style="margin-top: 40px;">
+      <h3>Gestión de Municipios</h3>
+      <div style="margin-bottom: 15px; border: 1px solid #ffc107; background-color: #fff3cd; padding: 10px; border-radius: 5px;">
+        <h4 style="margin-top:0; margin-bottom: 5px; color: #856404;">Acción de Prueba</h4>
+        <p style="margin: 0; font-size: 0.9em;">Este botón ejecuta manualmente el proceso de descuento de consumo semanal (que normalmente corre una vez por semana) para probar la funcionalidad.</p>
+        <button onclick="ejecutarConsumoManual()" style="width: auto; padding: 8px 15px; margin-top: 10px; background-color: #ffc107; color: black;">Ejecutar Consumo Semanal Manualmente</button>
+      </div>
+      <input type="text" id="buscador-usuarios" onkeyup="filtrarUsuarios()" placeholder="Buscar por municipio o usuario..." style="width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+      <div class="table-responsive">
+      <table border="1" style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+          <tr style="background: #eee;">
+            <th style="padding: 8px;">Municipio</th>
+            <th style="padding: 8px;">Usuario</th>
+            <th style="padding: 8px;">Estado</th>
+            <th style="padding: 8px;">Stock</th>
+            <th style="padding: 8px;">Consumo Diario</th>
+            <th style="padding: 8px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="lista-usuarios"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+      <button onclick="window.location.href='/logout'" style="background-color: #666;">Cerrar Sesión</button>
+    </div>
+  </div>
+</main>
+
+<script>
+let myChart = null;
+let municipiosGlobal = [];
+
+async function cargarGrafico() {
+  try {
+    // 1. Pedimos los datos al servidor
+    const res = await fetch('/api/admin/stock');
+    
+    if (res.status === 403 || res.status === 401) {
+      alert('Acceso denegado');
+      window.location.href = '/login.html';
+      return;
+    }
+
+    municipiosGlobal = await res.json();
+    actualizarGrafico(); // Dibuja el gráfico con orden y filtros por defecto
+
+    // 2.5 Llenar la tabla de gestión
+    const tbody = document.getElementById('lista-usuarios');
+    tbody.innerHTML = ''; // Limpiar tabla
+    municipiosGlobal.forEach(m => {
+      const tr = document.createElement('tr');
+      const estadoColor = m.bloqueado ? 'red' : 'green';
+      const estadoTexto = m.bloqueado ? 'BLOQUEADO' : 'Activo';
+      const btnBloqueoTexto = m.bloqueado ? 'Desbloquear' : 'Bloquear';
+      
+      tr.innerHTML = `
+        <td style="padding: 8px;">${m.nombre}</td>
+        <td style="padding: 8px;">${m.usuario}</td>
+        <td style="padding: 8px; color: ${estadoColor}; font-weight: bold;">${estadoTexto}</td>
+        <td style="padding: 8px;">${m.stock}</td>
+        <td style="padding: 8px;">${m.consumo_estimado_diario || 0}</td>
+        <td style="padding: 8px;">
+          <button onclick="editarMunicipio(${m.id}, '${m.nombre}', ${m.consumo_estimado_diario || 0})" style="padding: 5px; font-size: 0.8em; margin-bottom: 2px; background-color: #17a2b8;">Editar Municipio</button>
+          <button onclick="editarStock(${m.id}, '${m.nombre}')" style="padding: 5px; font-size: 0.8em; margin-bottom: 2px; background-color: #007bff;">Editar Stock</button>
+          <button onclick="cambiarPassword(${m.id}, '${m.usuario}')" style="padding: 5px; font-size: 0.8em; margin-bottom: 2px; background-color: #ffc107; color: black;">Cambiar Pass</button>
+          <button onclick="toggleBloqueo(${m.id})" style="padding: 5px; font-size: 0.8em; margin-bottom: 2px;">${btnBloqueoTexto}</button>
+          <button onclick="eliminarUsuario(${m.id})" style="padding: 5px; font-size: 0.8em; background-color: #d9534f; color: white; border: none;">Eliminar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (error) {
+    console.error('Error cargando gráfico:', error);
+  }
+}
+
+function actualizarGrafico() {
+  const filtro = document.getElementById('filtro-grafico').value.toLowerCase();
+  const orden = document.getElementById('orden-grafico').value;
+
+  // 1. Filtrar datos
+  let datos = municipiosGlobal.filter(m => m.nombre.toLowerCase().includes(filtro));
+
+  // 2. Ordenar datos
+  if (orden === 'nombre') {
+    datos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  } else if (orden === 'stockAsc') {
+    datos.sort((a, b) => a.stock - b.stock);
+  } else if (orden === 'stockDesc') {
+    datos.sort((a, b) => b.stock - a.stock);
+  }
+
+  // 3. Preparar arrays para Chart.js
+  const nombres = datos.map(m => m.nombre);
+  const stocks = datos.map(m => m.stock);
+
+  // 4. Ajustar ancho dinámico (Scroll horizontal)
+  const chartCanvas = document.getElementById('graficoStock');
+  const chartContainer = chartCanvas.parentElement;
+  const barWidth = 35; 
+  const newWidth = Math.max(nombres.length * barWidth, chartContainer.parentElement.clientWidth);
+  chartContainer.style.width = `${newWidth}px`;
+
+  // 5. Destruir gráfico anterior si existe para evitar superposiciones
+  if (myChart) myChart.destroy();
+
+  // 6. Dibujar nuevo gráfico
+  const backgroundColors = stocks.map(s => s < 300 ? 'rgba(255, 99, 132, 0.6)' : 'rgba(54, 162, 235, 0.6)');
+  const borderColors = stocks.map(s => s < 300 ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)');
+
+  const ctx = chartCanvas.getContext('2d');
+  myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: nombres,
+      datasets: [{
+        label: 'Insumos Disponibles',
+        data: stocks,
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          suggestedMax: 2000,
+          title: { display: true, text: 'Cantidad de Insumos' }
+        }
+      }
+    }
+  });
+}
+
+async function crearUsuario() {
+  const nombre = document.getElementById('nuevo-nombre').value;
+  const usuario = document.getElementById('nuevo-usuario').value;
+  const stock = document.getElementById('nuevo-stock').value;
+  const consumoDiario = document.getElementById('nuevo-consumo').value;
+  const mensaje = document.getElementById('mensaje-creacion');
+  
+  if (!nombre || !usuario) {
+    alert('Por favor completá todos los campos');
+    return;
+  }
+
+  // --- NUEVA VALIDACIÓN ---
+  const soloLetrasEspacios = /^[a-zA-Z\s]+$/;
+  const soloLetras = /^[a-zA-Z]+$/;
+
+  if (!soloLetrasEspacios.test(nombre)) {
+    alert('El nombre del municipio solo puede contener letras y espacios.');
+    return;
+  }
+  if (!soloLetras.test(usuario)) {
+    alert('El nombre de usuario solo puede contener letras.');
+    return;
+  }
+  // --- FIN NUEVA VALIDACIÓN ---
+
+  mensaje.textContent = 'Procesando...';
+  mensaje.style.color = 'blue';
+
+  const res = await fetch('/api/admin/crear-usuario', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre, usuario, stock, consumoDiario })
+  });
+
+  const data = await res.json();
+  mensaje.textContent = data.message;
+  mensaje.style.color = res.ok ? 'green' : 'red';
+
+  if (res.ok) {
+    // Limpiar campos y recargar gráfico
+    document.getElementById('nuevo-nombre').value = '';
+    document.getElementById('nuevo-usuario').value = '';
+    document.getElementById('nuevo-stock').value = '';
+    document.getElementById('nuevo-consumo').value = '';
+    cargarGrafico(); // Actualizar el gráfico por si queremos ver al nuevo (aunque tendrá 0 stock)
+  }
+}
+
+function filtrarUsuarios() {
+  const input = document.getElementById('buscador-usuarios');
+  const filter = input.value.toUpperCase();
+  const table = document.getElementById('lista-usuarios');
+  const tr = table.getElementsByTagName('tr');
+
+  for (let i = 0; i < tr.length; i++) {
+    const tdNombre = tr[i].getElementsByTagName('td')[0]; // Columna Municipio
+    const tdUsuario = tr[i].getElementsByTagName('td')[1]; // Columna Usuario
+    if (tdNombre || tdUsuario) {
+      const txtValueNombre = tdNombre.textContent || tdNombre.innerText;
+      const txtValueUsuario = tdUsuario.textContent || tdUsuario.innerText;
+      if (txtValueNombre.toUpperCase().indexOf(filter) > -1 || txtValueUsuario.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
+  }
+}
+
+async function toggleBloqueo(id) {
+  if (!confirm('¿Estás seguro de cambiar el estado de bloqueo de este usuario?')) return;
+  
+  const res = await fetch(`/api/admin/usuario/${id}/toggle-bloqueo`, { method: 'POST' });
+  if (res.ok) {
+    cargarGrafico(); // Recargar tabla y gráfico
+  } else {
+    alert('Error al cambiar estado');
+  }
+}
+
+async function eliminarUsuario(id) {
+  if (!confirm('¿REALMENTE querés eliminar este municipio? Esta acción no se puede deshacer.')) return;
+  
+  const res = await fetch(`/api/admin/usuario/${id}`, { method: 'DELETE' });
+  if (res.ok) {
+    cargarGrafico(); // Recargar tabla y gráfico
+  } else {
+    alert('Error al eliminar usuario');
+  }
+}
+
+async function editarStock(id, nombre) {
+  const nuevoStock = prompt(`Ingrese el nuevo stock manual para ${nombre}:`);
+  
+  if (nuevoStock === null) return; // Cancelado
+  if (nuevoStock.trim() === '' || isNaN(nuevoStock) || parseInt(nuevoStock) < 0) {
+    alert('Por favor ingrese un número válido.');
+    return;
+  }
+
+  const res = await fetch(`/api/admin/usuario/${id}/actualizar-stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nuevoStock: parseInt(nuevoStock) })
+  });
+
+  if (res.ok) {
+    alert('Stock actualizado.');
+    cargarGrafico();
+  } else {
+    alert('Error al actualizar stock.');
+  }
+}
+
+async function cambiarPassword(id, usuario) {
+  const nuevaPass = prompt(`Ingrese la nueva contraseña para el usuario '${usuario}':`);
+  
+  if (nuevaPass === null) return; // Cancelado
+  if (nuevaPass.trim() === '') {
+    alert('La contraseña no puede estar vacía.');
+    return;
+  }
+
+  const res = await fetch(`/api/admin/usuario/${id}/cambiar-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nuevaPassword: nuevaPass })
+  });
+
+  const data = await res.json();
+  alert(data.message);
+}
+
+async function editarMunicipio(id, nombreActual, consumoActual) {
+  const nuevoNombre = prompt(`Editar nombre del municipio:`, nombreActual);
+  if (nuevoNombre === null) return; // El usuario canceló
+
+  const nuevoConsumo = prompt(`Editar consumo diario para ${nuevoNombre}:`, consumoActual);
+  if (nuevoConsumo === null) return; // El usuario canceló
+
+  // Validaciones básicas en el frontend
+  if (nuevoNombre.trim() === '') {
+    alert('El nombre no puede estar vacío.');
+    return;
+  }
+  const consumoNum = parseInt(nuevoConsumo);
+  if (isNaN(consumoNum) || consumoNum < 0) {
+    alert('Por favor ingrese un número válido para el consumo.');
+    return;
+  }
+
+  const res = await fetch(`/api/admin/usuario/${id}/editar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nuevoNombre: nuevoNombre.trim(), nuevoConsumo: consumoNum })
+  });
+
+  const data = await res.json();
+  alert(data.message);
+
+  if (res.ok) cargarGrafico(); // Recargar los datos de la tabla
+}
+
+async function ejecutarConsumoManual() {
+  if (!confirm('¿Estás seguro de que deseas ejecutar el proceso de consumo semanal AHORA? Esto restará el consumo de 5 días del stock de todos los municipios configurados.')) {
+    return;
+  }
+
+  const res = await fetch('/api/admin/ejecutar-descuento-semanal', {
+    method: 'POST'
+  });
+
+  const data = await res.json();
+  alert(data.message);
+
+  if (res.ok) {
+    // Recargar todos los datos de la página para ver los cambios
+    cargarGrafico();
+  }
+}
+
+async function cargarMensajesAdmin() {
+  const tbody = document.getElementById('lista-mensajes-admin');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>';
+
+  try {
+    const res = await fetch('/api/admin/mensajes');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: `Error de red o servidor (${res.status})` }));
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: red;">${errorData.message}</td></tr>`;
+      return;
+    }
+
+    const mensajes = await res.json();
+    tbody.innerHTML = '';
+
+    if (mensajes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #666;">No hay mensajes registrados.</td></tr>';
+      return;
+    }
+
+    mensajes.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-size: 0.85em; color: #666;">${m.fecha}</td>
+        <td style="font-weight: bold; color: #005EB8;">${m.remitenteNombre}</td>
+        <td style="font-weight: bold; color: #333;">${m.destinatarioNombre}</td>
+        <td>
+          <div class="mensaje-contenido truncado" onclick="this.classList.toggle('truncado')" title="Click para expandir">
+            ${m.contenido}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('Error cargando mensajes:', e);
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: red;">Error de conexión.</td></tr>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarGrafico();
+  cargarMensajesAdmin();
+});
+</script>
+
+</body>
+</html>

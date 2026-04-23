@@ -1,0 +1,344 @@
+* {
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f8;
+  color: #333;
+}
+
+header {
+  
+  background: linear-gradient(90deg, #005EB8 0%, #00AEEF 100%);
+  color: white;
+  padding: 15px;
+  text-align: center;
+}
+
+main {
+  padding: 15px;
+}
+
+.panel-usuario {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* ===== DESKTOP TABLE ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+th, td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background: #e9eef3;
+  text-align: left;
+}
+
+/* Contenedor para scroll en celulares */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cantidad {
+  font-weight: bold;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background: #0072BB; 
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+button:hover {
+  background: #005a96;
+}
+
+/* Clase para el formulario de admin (Desktop: 4 columnas) */
+.admin-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr 1fr 1fr auto;
+}
+
+/* Para evitar que los inputs con placeholders largos rompan la grilla */
+.admin-grid input {
+  min-width: 0;
+}
+
+/* ===== ESTILOS LOGIN ===== */
+.login-body {
+  
+  background: #f0f4f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.login-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 94, 184, 0.15); 
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.login-box h2 {
+  color: #005EB8;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.login-box h4 {
+  color: #666;
+  margin-top: 0;
+  margin-bottom: 30px;
+  font-weight: normal;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px; /* Evita zoom en iPhone */
+  outline: none;
+}
+
+.login-box input:focus {
+  border-color: #00AEEF;
+  box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.2);
+}
+
+.login-box button {
+  background: #00AEEF; 
+  font-size: 16px;
+  margin-top: 10px;
+  padding: 12px;
+}
+
+.login-box button:hover {
+  background: #008acb;
+}
+
+#error {
+  color: #d9534f;
+  margin-top: 15px;
+  font-size: 0.9rem;
+}
+
+/* ===== MOBILE CARDS ===== */
+.mobile {
+  display: none;
+}
+
+.card {
+  background: white;
+  padding: 15px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.1);
+}
+
+.card h3 {
+  margin-top: 0;
+}
+
+/* Estilo para el separador HR */
+.separador-seccion {
+  border: 0;
+  height: 1px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 94, 184, 0.75), rgba(0, 0, 0, 0));
+  margin: 30px 0;
+}
+
+/* ===== MENSAJERÍA ===== */
+.mensajes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Estilo para el contador de NO leídos */
+.notificacion-badge {
+  background-color: #d9534f; 
+  color: white;
+  padding: 2px 6px;
+  font-size: 0.75em;
+  font-weight: bold;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Estilo para mensajes no leídos */
+.mensaje-no-leido {
+  background-color: #eef5ff !important; 
+  border-left: 4px solid #005EB8;
+  padding-left: 6px !important;
+  --msg-bg: #eef5ff; /* Variable CSS para el fondo del degradado */
+}
+
+/* Estilos para contenido de mensaje expandible */
+.mensaje-contenido {
+  margin-top: 5px;
+  color: #333;
+  white-space: pre-wrap; /* Mantiene saltos de línea y espacios */
+  word-wrap: break-word;      /* Rompe palabras largas en navegadores viejos */
+  overflow-wrap: break-word;  /* Estándar actual */
+  word-break: break-word;     /* Asegura que no se salga del contenedor en móviles */
+  transition: all 0.3s ease;
+}
+
+.mensaje-contenido.truncado {
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Muestra máximo 3 líneas */
+  -webkit-box-orient: vertical;
+  overflow-y: hidden;
+  cursor: pointer;
+  /* Eliminamos el ::after complejo anterior para usar el '...' nativo del navegador */
+}
+
+/* Botón para marcar como leído/no leído */
+.btn-leido {
+  width: auto !important; 
+  font-size: 0.8em !important;
+  padding: 4px 8px !important;
+  margin-top: 8px;
+  background-color: #6c757d; 
+}
+.btn-leido:hover {
+  background-color: #5a6268;
+}
+
+/* Contenedor para los botones de acción de cada mensaje */
+.mensaje-acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Botón para responder un mensaje */
+.btn-responder {
+  width: auto !important;
+  font-size: 0.8em !important;
+  padding: 4px 8px !important;
+  background-color: #007bff; 
+}
+.btn-responder:hover {
+  background-color: #0069d9;
+}
+
+/* Fieldset para separar la sección de mensajería */
+.seccion-mensajeria {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 15px 20px 20px 20px; /* top, right, bottom, left */
+  margin-top: 40px;
+}
+
+.seccion-mensajeria legend {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #005EB8;
+  padding: 0 10px;
+}
+
+/* Estilos para las pestañas de mensajería */
+.tabs-mensajeria {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 10px;
+}
+
+.tab-link {
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 1em;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  width: auto !important; /* Sobreescribe el estilo general de button */
+}
+.tab-link:hover {
+  background-color: #f0f0f0;
+}
+.tab-link.active {
+  color: #005EB8;
+  font-weight: bold;
+  border-bottom-color: #005EB8;
+}
+
+/* Estilos específicos para la tabla de mensajes del admin */
+.tabla-mensajes-admin td {
+  font-size: 0.9em;
+  vertical-align: top;
+}
+
+/* ===== RESPONSIVE BREAKPOINT ===== */
+@media (max-width: 768px) {
+  
+  /* Convertir la grilla de admin a 1 sola columna vertical */
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mensajes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* En celular, los inputs y botones ocupan todo el ancho */
+  .form-consumo select, 
+  .form-consumo button, 
+  .form-consumo input {
+    width: 100%;
+    margin-bottom: 10px;
+    margin-right: 0 !important; /* Importante: quita márgenes laterales que rompen el ancho */
+  }
+
+  /* Acomodar el texto del cálculo */
+  #calculo-visual {
+    display: block;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .desktop {
+    display: none;
+  }
+
+  .mobile {
+    display: block;
+  }
+
+  button {
+    font-size: 16px;
+  }
+}
