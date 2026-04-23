@@ -83,8 +83,8 @@ app.use(session({
     store: new pgSession({
         pool:                  pgPool,
         tableName:             'session',
-        createTableIfMissing:  false,
-        pruneSessionInterval:  60 * 15, // limpia sesiones expiradas cada 15 min
+        createTableIfMissing:  true,  // crea la tabla si no existe
+        pruneSessionInterval:  false, // desactivado: no hay proceso persistente en serverless
     }),
     secret:            process.env.SESSION_SECRET,
     resave:            false,
@@ -169,7 +169,10 @@ app.post('/login', loginLimiter, async (req, res) => {
 
 // GET /logout
 app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login.html'));
+    req.session.destroy(err => {
+        if (err) console.error('[LOGOUT] Error destruyendo sesión:', err);
+        res.redirect('/login.html');
+    });
 });
 
 // GET /api/datos-usuario
