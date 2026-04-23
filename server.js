@@ -143,13 +143,19 @@ app.post('/login', loginLimiter, async (req, res) => {
             .eq('usuario', usuario)
             .limit(1);
 
-        if (error) return internalError(res, error);
+        if (error) {
+            console.error('[LOGIN] Error Supabase:', JSON.stringify(error));
+            return internalError(res, error);
+        }
+
+        console.log(`[LOGIN] usuario="${usuario}" rows=${rows?.length ?? 'null'}`);
 
         const user = rows?.[0];
 
         // Respuesta genérica para no revelar si el usuario existe (previene enumeración)
         const passwordValida = user && await bcrypt.compare(password, user.password_hash);
         if (!passwordValida) {
+            if (!user) console.warn(`[LOGIN] No se encontró el usuario "${usuario}" en la DB`);
             return res.status(401).json({ message: 'Usuario o contraseña incorrectos.' });
         }
 
